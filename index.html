@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ms-MY">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kemahiran Pemulihan: Wang Hingga RM10 (Pembelajaran)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { box-sizing: border-box; }
+    .activity-card { min-height: 400px; }
+    .number-card, .money-card, .item-card, .option-button { 
+      transition: all .3s ease; 
+      cursor: pointer; 
+    }
+    .number-card:hover, .money-card:hover, .item-card:hover, .option-button:hover { 
+      transform: scale(1.05); 
+    }
+    .dragging { opacity: .5; transform: rotate(5deg); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      transition: all .3s ease;
+      min-width: 60px;
+      min-height: 60px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-content: flex-start;
+    }
+    .drop-zone.drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+
+    /* Salah */
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    .shake { animation: shake 0.5s ease; }
+
+    /* Zon sudah diisi */
+    .drop-zone-filled {
+      border-style: solid;
+      border-color: #4ade80;
+      background-color: #f0fdf4;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-full">
+
+  <div class="bg-yellow-100 border-b-4 border-yellow-300 p-4 shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">📚</span>
+        <span id="info-text" class="text-lg font-semibold text-gray-800">
+          Pilih aktiviti untuk mula belajar wang!
+        </span>
+      </div>
+      <button id="speak-btn"
+              class="bg-yellow-300 hover:bg-yellow-400 text-yellow-800 font-bold py-2 px-4 rounded-full text-xl transition-colors duration-200"
+              onclick="speakInfo()">
+        🔊
+      </button>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 activity-card flex items-center justify-center">
+      <div id="activity-content" class="text-center w-full">
+        <div class="py-16">
+          <div class="text-6xl mb-4">💰</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">
+            Kemahiran Pemulihan: Wang Hingga RM10
+          </h2>
+          <p class="text-xl text-gray-600 mb-8">
+            Pilih aktiviti di bawah untuk meneroka nilai wang, tambah, tolak, dan jual beli.
+          </p>
+          <div class="text-4xl">👇</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+      <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Pilih Aktiviti</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <button onclick="loadActivity(1)"
+                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🎯 Susun Nilai Wang
+        </button>
+        <button onclick="loadActivity(2)"
+                class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🐷 Tabung Saya (Tambah)
+        </button>
+        <button onclick="loadActivity(3)"
+                class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          💰 Dompet Ajaib (Gabung)
+        </button>
+        <button onclick="loadActivity(4)"
+                class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          💸 Beri Baki (Tolak)
+        </button>
+        <button onclick="loadActivity(5)"
+                class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          🛒 Kedai Runcit (Harian)
+        </button>
+      </div>
+
+      <div class="flex justify-center gap-4">
+        <button onclick="clearActivity()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          🧹 Bersih
+        </button>
+        <button onclick="nextActivity()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          ➡️ Seterusnya
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentActivity = 0;
+    let ttsEnabled = false;
+    let currentInfo = "Pilih aktiviti untuk mula belajar wang!";
+    let draggedElement = null;
+
+    /* ====== State Permainan (DIKEMAS KINI) ====== */
+    window.moneyGames = {
+      // Data untuk aktiviti 1 yang baharu
+      susun: { 
+        sequence: [0.05, 0.10, 0.20, 0.50, 1.00, 5.00, 10.00], 
+        names: ["5 Sen", "10 Sen", "20 Sen", "50 Sen", "RM 1", "RM 5", "RM 10"],
+        nextCorrect: 0.05 
+      },
+      tabung: { total: 0.00, saku: 0.50 },
+      dompet: { target: 0.00, current: 0.00 },
+      baki: { price: 0.00, paid: 0.00, correct: 0.00 },
+      kedai: { total: 0.00, wallet: 10.00 }
+    };
+
+    /* ====== TTS (Kekal sama) ====== */
+    function speak(text) {
+      if (!ttsEnabled) return;
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ms-MY';
+        u.rate = 0.9; u.pitch = 1.05;
+        const voices = window.speechSynthesis.getVoices();
+        const ms = voices.find(v => v.lang === 'ms-MY' || v.lang?.startsWith('ms'));
+        if (ms) u.voice = ms;
+        window.speechSynthesis.speak(u);
+      }, 100);
+    }
+    function setInfo(text) { currentInfo = text; document.getElementById('info-text').textContent = text; }
+    function speakInfo() {
+      if (!ttsEnabled) {
+        ttsEnabled = true;
+        const btn = document.getElementById('speak-btn');
+        btn.classList.add('bg-green-300', 'hover:bg-green-400');
+        btn.classList.remove('bg-yellow-300', 'hover:bg-yellow-400');
+      }
+      speak(currentInfo);
+    }
+
+    /* ====== DnD helpers (Kekal sama) ====== */
+    function dragStart(e) { draggedElement = e.target; e.target.classList.add('dragging'); }
+    function dragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over')); }
+    function allowDrop(e) { e.preventDefault(); if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.add('drag-over'); }
+    function dragLeave(e) { if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.remove('drag-over'); }
+
+    /* ====== Router (DIUBAH) ====== */
+    function loadActivity(n) {
+      currentActivity = n;
+      const content = document.getElementById('activity-content');
+      // Panggilan fungsi Aktiviti 1 diubah
+      if (n === 1) return loadSusunWang(content); 
+      if (n === 2) return loadTabungSaya(content);
+      if (n === 3) return loadDompetAjaib(content);
+      if (n === 4) return loadBeriBaki(content);
+      if (n === 5) return loadKedaiRuncit(content);
+    }
+
+    /* ====== Aktiviti 1: Susun Nilai Wang (Baharu Menggantikan Kenali Wang) ====== */
+    function loadSusunWang(content) {
+      const moneySequence = [
+        { name: "5 Sen", value: 0.05, color: "gray" },
+        { name: "10 Sen", value: 0.10, color: "gray" },
+        { name: "20 Sen", value: 0.20, color: "yellow" },
+        { name: "50 Sen", value: 0.50, color: "yellow" },
+        { name: "RM 1", value: 1.00, color: "blue" },
+        { name: "RM 5", value: 5.00, color: "green" },
+        { name: "RM 10", value: 10.00, color: "red" }
+      ];
+      const shuffled = [...moneySequence].sort(() => Math.random() - 0.5);
+      
+      // Reset state
+      window.moneyGames.susun.nextCorrect = 0.05;
+      
+      const infoMsg = "Mari susun wang ikut nilai, dari paling kecil ke paling besar. Mula dengan 5 Sen.";
+      setInfo(infoMsg);
+      
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-blue-600 mb-6">🎯 Susun Nilai Wang</h3>
+        <div class="mb-8">
+          <h4 class="text-lg font-semibold mb-3">Garisan Susun (Letak di sini):</h4>
+          <div id="susun-line" class="flex flex-wrap justify-center gap-3 min-h-24 p-4 drop-zone rounded-lg bg-gray-50"
+               ondrop="dropOnSusun(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+        </div>
+        <div>
+          <h4 class="text-lg font-semibold mb-3">Bakul Duit (Pilih dari sini):</h4>
+          <div id="susun-bank" class="flex flex-wrap justify-center gap-4">
+            ${shuffled.map(m => `
+              <div class="money-card bg-${m.color}-100 border-2 border-${m.color}-300 rounded-lg p-4 text-xl font-bold text-${m.color}-800 cursor-move"
+                   draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-value="${m.value}" data-name="${m.name}">
+                ${m.name}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function dropOnSusun(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over'); if (!draggedElement) return;
+      
+      const draggedValue = parseFloat(draggedElement.dataset.value);
+      const { sequence, names, nextCorrect } = window.moneyGames.susun;
+      
+      if (draggedValue === nextCorrect) {
+        // Betul
+        e.currentTarget.appendChild(draggedElement);
+        draggedElement.setAttribute('draggable','false');
+        draggedElement.classList.remove('cursor-move');
+        draggedElement = null;
+        
+        const currentIndex = sequence.indexOf(nextCorrect);
+        const nextIndex = currentIndex + 1;
+        
+        if (nextIndex < sequence.length) {
+          const newNextValue = sequence[nextIndex];
+          const newNextName = names[nextIndex];
+          
+          window.moneyGames.susun.nextCorrect = newNextValue;
+          const msg = `Betul! Sekarang cari ${newNextName}.`;
+          setInfo(msg); speak(msg);
+        } else {
+          // Selesai
+          const msg = "Syabas! Anda berjaya menyusun semua wang!";
+          setInfo(msg); speak(msg);
+          window.moneyGames.susun.nextCorrect = null;
+          e.currentTarget.classList.add('drop-zone-filled');
+        }
+      } else {
+        // Salah
+        const correctIndex = sequence.indexOf(nextCorrect);
+        const correctName = names[correctIndex];
+        
+        const msg = `Oh! Itu bukan. Cuba cari ${correctName}.`;
+        setInfo(msg); speak(msg);
+        draggedElement.classList.add('shake');
+        setTimeout(()=>draggedElement.classList.remove('shake'), 500);
+      }
+    }
+
+
+    /* ====== Aktiviti 2: Tabung Saya (Kekal sama) ====== */
+    function loadTabungSaya(content) {
+      const saku = (Math.floor(Math.random() * 10) + 1) * 0.5; 
+      window.moneyGames.tabung = { total: 0.00, saku: saku };
+      setInfo(`Mari menabung! Hari ini dapat saku RM ${saku.toFixed(2)}. Klik butang untuk masukkan ke tabung.`);
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-purple-600 mb-6">🐷 Tabung Saya (Tambah)</h3>
+        <div class="flex flex-col items-center gap-6">
+          <div class="text-center">
+            <div class="text-lg text-gray-600">Jumlah dalam tabung:</div>
+            <div id="tabung-total" class="text-6xl font-bold text-gray-800">RM 0.00</div>
+          </div>
+          <div class="text-5xl">➕</div>
+          <div class="text-center">
+            <div class="text-lg text-gray-600">Duit saku hari ini:</div>
+            <div id="saku-amount" class="text-4xl font-bold text-purple-700">RM ${saku.toFixed(2)}</div>
+          </div>
+          <button id="add-to-tabung-btn" 
+                  class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-8 rounded-lg text-2xl transition-colors duration-200"
+                  onclick="tambahKeTabung()">
+            Masukkan dalam Tabung
+          </button>
+        </div>
+      `;
+    }
+    function tambahKeTabung() {
+      const btn = document.getElementById('add-to-tabung-btn');
+      if (btn) btn.disabled = true; 
+
+      const { total, saku } = window.moneyGames.tabung;
+      const newTotal = total + saku;
+      window.moneyGames.tabung.total = newTotal;
+
+      document.getElementById('tabung-total').textContent = `RM ${newTotal.toFixed(2)}`;
+      const msg = `Bagus! RM ${total.toFixed(2)} tambah RM ${saku.toFixed(2)} jadi RM ${newTotal.toFixed(2)}.`;
+      setInfo(msg); speak(msg);
+
+      const newSaku = (Math.floor(Math.random() * 10) + 1) * 0.5;
+      window.moneyGames.tabung.saku = newSaku;
+      
+      setTimeout(() => {
+        if (newTotal >= 10.00) {
+          setInfo("Syabas! Tabung sudah penuh! Mari mula semula."); speak("Syabas! Tabung sudah penuh! Mari mula semula.");
+          loadTabungSaya(document.getElementById('activity-content'));
+        } else {
+          document.getElementById('saku-amount').textContent = `RM ${newSaku.toFixed(2)}`;
+          if (btn) btn.disabled = false;
+          setInfo(`Saku seterusnya: RM ${newSaku.toFixed(2)}. Klik untuk masukkan lagi.`);
+        }
+      }, 2500);
+    }
+
+    /* ====== Aktiviti 3: Dompet Ajaib (Kekal sama) ====== */
+    function loadDompetAjaib(content) {
+      const target = ((Math.floor(Math.random() * 19) + 2) * 0.50).toFixed(2); 
+      window.moneyGames.dompet = { target: parseFloat(target), current: 0.00 };
+
+      const moneys = [
+        { name: "10 Sen", value: 0.10, color: "gray" },
+        { name: "20 Sen", value: 0.20, color: "yellow" },
+        { name: "50 Sen", value: 0.50, color: "yellow" },
+        { name: "RM 1", value: 1.00, color: "blue" },
+        { name: "RM 5", value: 5.00, color: "green" },
+      ];
+      const bank = [...moneys, ...moneys, ...moneys].sort(() => Math.random() - 0.5);
+
+      setInfo(`Mari buat RM ${target}. Seret wang dari bank ke dalam dompet.`);
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-green-600 mb-6">💰 Dompet Ajaib (Gabung Nilai)</h3>
+        <div class="flex flex-col md:flex-row gap-6">
+          <div class="w-full md:w-1/3">
+            <h4 class="text-lg font-semibold mb-3">Bank (Ambil dari sini):</h4>
+            <div id="money-bank" class="flex flex-wrap justify-center gap-2 p-4 bg-gray-100 rounded-lg min-h-32">
+              ${bank.map(m => `
+                <div class="money-card bg-${m.color}-100 border-2 border-${m.color}-300 rounded-lg p-2 text-lg font-bold text-${m.color}-800 cursor-move"
+                     draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-value="${m.value}">
+                  ${m.name}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="w-full md:w-2/3">
+            <div class="text-center mb-4">
+              <div class="text-lg text-gray-600">Nilai Sasaran:</div>
+              <div id="target-value" class="text-4xl font-bold text-green-700">RM ${target}</div>
+              <div class="text-lg text-gray-600 mt-2">Jumlah Dompet:</div>
+              <div id="current-value" class="text-5xl font-bold text-gray-800">RM 0.00</div>
+            </div>
+            <h4 class="text-lg font-semibold mb-3">Dompet (Letak di sini):</h4>
+            <div id="dompet-zone" class="drop-zone p-4 rounded-lg bg-green-50 min-h-32"
+                 ondrop="dropOnDompet(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+            <button onclick="resetDompet()" class="mt-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">
+              Reset Dompet
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    function dropOnDompet(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over'); if (!draggedElement) return;
+      const value = parseFloat(draggedElement.dataset.value);
+      
+      e.currentTarget.appendChild(draggedElement);
+      draggedElement.setAttribute('draggable','false'); 
+      draggedElement.classList.remove('cursor-move');
+
+      const { target } = window.moneyGames.dompet;
+      window.moneyGames.dompet.current += value;
+      const current = window.moneyGames.dompet.current;
+      document.getElementById('current-value').textContent = `RM ${current.toFixed(2)}`;
+      
+      draggedElement = null;
+
+      if (current.toFixed(2) === target.toFixed(2)) {
+        setInfo(`Syabas! Anda berjaya kumpul RM ${target}!`);
+        speak(`Syabas! Anda berjaya kumpul RM ${target}!`);
+        document.getElementById('dompet-zone').classList.add('drop-zone-filled');
+      } else if (current > target) {
+        setInfo(`Oh! Terlebih. Jumlah sekarang RM ${current.toFixed(2)}. Cuba reset.`);
+        speak(`Oh! Terlebih. Jumlah sekarang RM ${current.toFixed(2)}. Cuba reset.`);
+      } else {
+        setInfo(`RM ${current.toFixed(2)}. Perlu RM ${(target - current).toFixed(2)} lagi.`);
+      }
+    }
+    function resetDompet() {
+      loadDompetAjaib(document.getElementById('activity-content'));
+    }
+
+    /* ====== Aktiviti 4: Beri Baki (Kekal sama) ====== */
+    function loadBeriBaki(content) {
+      const price = (Math.floor(Math.random() * 18) + 2) * 0.50;
+      const paid = price < 5 ? 5.00 : 10.00;
+      const correct = paid - price;
+      
+      let options = new Set([correct.toFixed(2)]);
+      while (options.size < 3) {
+        const wrong = (paid - ((Math.floor(Math.random() * 18) + 2) * 0.50));
+        if (wrong > 0 && wrong.toFixed(2) !== correct.toFixed(2)) {
+          options.add(wrong.toFixed(2));
+        }
+      }
+      const shuffledOptions = [...options].sort(() => Math.random() - 0.5);
+      
+      window.moneyGames.baki = { price: price, paid: paid, correct: correct.toFixed(2) };
+      setInfo(`Harga barang RM ${price.toFixed(2)}. Pelanggan bayar RM ${paid.toFixed(2)}. Berapa bakinya?`);
+      
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-red-600 mb-6">💸 Beri Baki (Tolak)</h3>
+        <div class="flex flex-col items-center gap-6">
+          <div class="text-center">
+            <div class="text-lg text-gray-600">Harga Barang:</div>
+            <div class="text-5xl font-bold text-gray-800">RM ${price.toFixed(2)}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lg text-gray-600">Wang Dibayar:</div>
+            <div class="text-5xl font-bold text-gray-800">RM ${paid.toFixed(2)}</div>
+          </div>
+          <div class="text-4xl">➖</div>
+          <div class="text-center">
+            <div class="text-lg text-gray-600">Baki ialah:</div>
+            <div class="flex flex-wrap justify-center gap-4 mt-4">
+              ${shuffledOptions.map(opt => `
+                <button class="option-button bg-red-100 hover:bg-red-200 border-2 border-red-300 rounded-lg p-6 text-3xl font-bold text-red-800"
+                        onclick="checkBaki('${opt}', this)">
+                  RM ${opt}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    function checkBaki(answer, btn) {
+      const { correct } = window.moneyGames.baki;
+      if (answer === correct) {
+        setInfo(`Betul! Bakinya ialah RM ${correct}.`);
+        speak(`Betul! Bakinya ialah RM ${correct}.`);
+        btn.classList.add('bg-green-300', 'border-green-500');
+        setTimeout(() => loadBeriBaki(document.getElementById('activity-content')), 2000);
+      } else {
+        setInfo(`Bukan RM ${answer}. Cuba kira semula.`);
+        speak(`Bukan RM ${answer}. Cuba kira semula.`);
+        btn.classList.add('shake');
+        setTimeout(() => btn.classList.remove('shake'), 500);
+      }
+    }
+
+    /* ====== Aktiviti 5: Kedai Runcit (Kekal sama) ====== */
+    function loadKedaiRuncit(content) {
+      window.moneyGames.kedai = { total: 0.00, wallet: 10.00, cart: [] };
+      const items = [
+        { name: "Epal", price: 1.00, color: "red" },
+        { name: "Air Kotak", price: 1.50, color: "blue" },
+        { name: "Buku", price: 3.00, color: "purple" },
+        { name: "Roti", price: 2.50, color: "yellow" },
+        { name: "Pensel", price: 0.50, color: "gray" },
+      ];
+      setInfo(`Selamat datang ke kedai. Anda ada RM 10.00. Seret barang ke bakul.`);
+      
+      content.innerHTML = `
+        <div id="kedai-view">
+          <h3 class="text-2xl font-bold text-orange-600 mb-6">🛒 Kedai Runcit (Situasi Harian)</h3>
+          <div class="flex justify-between items-center mb-4">
+            <div class="text-xl font-semibold">Dompet Anda: <span class="text-green-600">RM 10.00</span></div>
+            <div class="text-xl font-semibold">Jumlah Bakul: <span id="cart-total" class="text-red-600">RM 0.00</span></div>
+          </div>
+          <div class="flex flex-col md:flex-row gap-6">
+            <div class="w-full md:w-2/3">
+              <h4 class="text-lg font-semibold mb-3">Rak Kedai (Ambil dari sini):</h4>
+              <div id="item-shelf" class="flex flex-wrap justify-center gap-3 p-4 bg-gray-100 rounded-lg min-h-32">
+                ${items.map(i => `
+                  <div class="item-card bg-${i.color}-100 border-2 border-${i.color}-300 rounded-lg p-4 text-center cursor-move"
+                       draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-price="${i.price}" data-name="${i.name}">
+                    <div class="text-xl font-bold text-${i.color}-800">${i.name}</div>
+                    <div class="text-md text-gray-700">RM ${i.price.toFixed(2)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div class="w-full md:w-1/3">
+              <h4 class="text-lg font-semibold mb-3">Bakul (Letak di sini):</h4>
+              <div id="cart-zone" class="drop-zone p-4 rounded-lg bg-orange-50 min-h-32"
+                   ondrop="dropOnCart(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+              <button onclick="pergiKaunter()" class="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg text-lg">
+                Bayar di Kaunter
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    function dropOnCart(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over'); if (!draggedElement) return;
+      const price = parseFloat(draggedElement.dataset.price);
+      const name = draggedElement.dataset.name;
+      const { total, wallet } = window.moneyGames.kedai;
+
+      if (total + price > wallet) {
+        setInfo(`Oh! Duit tak cukup. Anda cuma ada RM ${wallet.toFixed(2)}.`);
+        speak(`Oh! Duit tak cukup. Anda cuma ada RM ${wallet.toFixed(2)}.`);
+        draggedElement.classList.add('shake'); setTimeout(()=>draggedElement.classList.remove('shake'),500);
+        return;
+      }
+      
+      e.currentTarget.appendChild(draggedElement);
+      draggedElement.setAttribute('draggable','false');
+      draggedElement.classList.remove('cursor-move');
+
+      window.moneyGames.kedai.total += price;
+      window.moneyGames.kedai.cart.push(name);
+      document.getElementById('cart-total').textContent = `RM ${window.moneyGames.kedai.total.toFixed(2)}`;
+      
+      setInfo(`Tambah ${name}. Jumlah baru RM ${window.moneyGames.kedai.total.toFixed(2)}.`);
+      draggedElement = null;
+    }
+    function pergiKaunter() {
+      const { total, wallet } = window.moneyGames.kedai;
+      if (total === 0) {
+        setInfo("Bakul masih kosong. Pilih barang dulu.");
+        speak("Bakul masih kosong. Pilih barang dulu.");
+        return;
+      }
+      
+      const baki = wallet - total;
+      const msg = `Jumlah barang RM ${total.toFixed(2)}. Anda bayar RM ${wallet.toFixed(2)}. Baki anda ialah RM ${baki.toFixed(2)}.`;
+      setInfo(msg); speak(msg);
+
+      const content = document.getElementById('activity-content');
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-orange-600 mb-6">🛒 Kaunter Bayaran</h3>
+        <div class="flex flex-col items-center gap-4 text-center">
+          <div class="text-lg text-gray-600">Jumlah Perlu Bayar:</div>
+          <div class="text-5xl font-bold text-red-600">RM ${total.toFixed(2)}</div>
+          <div class="text-lg text-gray-600 mt-4">Wang Anda:</div>
+          <div class="text-5xl font-bold text-green-600">RM ${wallet.toFixed(2)}</div>
+          <div class="text-4xl my-4">⬇️</div>
+          <div class="text-lg text-gray-600">Baki Diterima:</div>
+          <div class="text-6xl font-bold text-gray-800 p-4 bg-green-100 rounded-lg">RM ${baki.toFixed(2)}</div>
+          <button onclick="loadKedaiRuncit(document.getElementById('activity-content'))" class="mt-8 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-lg">
+            Beli Lagi
+          </button>
+        </div>
+      `;
+    }
+
+    /* ====== Kawalan Umum ====== */
+    function clearActivity() {
+      currentActivity = 0;
+      document.getElementById('activity-content').innerHTML = `
+        <div class="text-center py-16">
+          <div class="text-6xl mb-4">💰</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">Kemahiran Pemulihan: Wang Hingga RM10</h2>
+          <p class="text-xl text-gray-600 mb-8">Pilih aktiviti di bawah untuk meneroka nilai wang, tambah, tolak, dan jual beli.</p>
+          <div class="text-4xl">👇</div>
+        </div>
+      `;
+      setInfo("Pilih aktiviti untuk mula belajar wang!");
+    }
+    function nextActivity() {
+      if (currentActivity === 0) return loadActivity(1);
+      if (currentActivity < 5) return loadActivity(currentActivity + 1); 
+      return loadActivity(1);
+    }
+
+    // Kekalkan TTS resume
+    if ('speechSynthesis' in window) {
+      setInterval(() => { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); }, 1000);
+    }
+  </script>
+</body>
+</html>

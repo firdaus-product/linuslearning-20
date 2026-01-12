@@ -201,13 +201,16 @@
     <script>
         /* --- DATA WANG --- */
         const MONEY_DATA = {
-            'S5': { label: '5 Sen', value: 0.05, speech: 'lima sen', type: 'syiling', img: 'https://iili.io/KZz9L7I.png', color: 'gray' },
-            'S10': { label: '10 Sen', value: 0.10, speech: 'sepuluh sen', type: 'syiling', img: 'https://iili.io/KZz9Qet.png', color: 'gray' },
-            'S20': { label: '20 Sen', value: 0.20, speech: 'dua puluh sen', type: 'syiling', img: 'https://iili.io/KZz9Pgp.png', color: 'yellow' },
-            'S50': { label: '50 Sen', value: 0.50, speech: 'lima puluh sen', type: 'syiling', img: 'https://iili.io/KZz9sdN.png', color: 'yellow' },
-            'RM1': { label: 'RM 1', value: 1.00, speech: 'satu ringgit', type: 'kertas', img: 'https://iili.io/KZzHHrl.md.png', color: 'blue' },
-            'RM5': { label: 'RM 5', value: 5.00, speech: 'lima ringgit', type: 'kertas', img: 'https://iili.io/KZz9bXs.md.png', color: 'green' },
-            'RM10': { label: 'RM 10', value: 10.00, speech: 'sepuluh ringgit', type: 'kertas', img: 'https://iili.io/KZz9mLG.md.png', color: 'red' }
+            'S5': { label: '5 Sen', value: 0.05, speech: 'lima sen', type: 'syiling', img: './Assets/5 sen.png', color: 'gray' },
+            'S10': { label: '10 Sen', value: 0.10, speech: 'sepuluh sen', type: 'syiling', img: './Assets/10 sen.png', color: 'gray' },
+            'S20': { label: '20 Sen', value: 0.20, speech: 'dua puluh sen', type: 'syiling', img: './Assets/20 sen.png', color: 'yellow' },
+            'S50': { label: '50 Sen', value: 0.50, speech: 'lima puluh sen', type: 'syiling', img: './Assets/50 sen.png', color: 'yellow' },
+            'RM1': { label: 'RM 1', value: 1.00, speech: 'satu ringgit', type: 'kertas', img: './Assets/RM1.png', color: 'blue' },
+            'RM5': { label: 'RM 5', value: 5.00, speech: 'lima ringgit', type: 'kertas', img: './Assets/RM5.png', color: 'green' },
+            'RM10': { label: 'RM 10', value: 10.00, speech: 'sepuluh ringgit', type: 'kertas', img: './Assets/RM10.png', color: 'red' },
+            'RM20': { label: 'RM 20', value: 20.00, speech: 'dua puluh ringgit', type: 'kertas', img: './Assets/RM20.png', color: 'orange' },
+            'RM50': { label: 'RM 50', value: 50.00, speech: 'lima puluh ringgit', type: 'kertas', img: './Assets/RM50.png', color: 'teal' },
+            'RM100': { label: 'RM 100', value: 100.00, speech: 'seratus ringgit', type: 'kertas', img: './Assets/RM100.png', color: 'purple' }
         };
         const ALL_IDS = Object.keys(MONEY_DATA);
 
@@ -281,10 +284,9 @@
             const valText = d.type === 'syiling' ? d.label.replace(' Sen', '') : d.label.replace('RM ', '');
 
             return `
-            <div class="${typeClass} ${sizeClass} ${textClass} flex items-center justify-center font-bold shadow-md bg-white ${extraClass} ${draggable ? 'draggable' : ''}"
-                 ${draggable ? `draggable="true" ondragstart="dragStart(event)" data-id="${id}"` : ''}
-                 style="background-color:${d.color};">
-                ${valText}
+            <div class="flex items-center justify-center font-bold shadow-md bg-white p-1 rounded-lg ${extraClass} ${draggable ? 'draggable cursor-grab active:cursor-grabbing hover:scale-105 transition-transform' : ''}"
+                 ${draggable ? `draggable="true" ondragstart="dragStart(event)" data-id="${id}"` : ''}>
+                <img src="${d.img}" class="${sizeClass} object-contain drop-shadow-sm pointer-events-none">
             </div>
         `;
         }
@@ -404,7 +406,7 @@
                     tabungMoney.push({
                         type: money.type === 'syiling' ? 'coin' : 'note',
                         val: money.type === 'syiling' ? money.label.replace(' Sen', '') : money.label.replace('RM ', ''),
-                        color: money.color
+                        img: money.img
                     });
                     currentSum += money.value;
                 }
@@ -418,12 +420,10 @@
                 <h3 class="text-2xl font-bold text-green-600 mb-4">🐷 Tabung Saya</h3>
                 <p class="mb-4 text-slate-500">Berapa jumlah wang dalam tabung?</p>
                 
-                <div class="bg-pink-100 border-4 border-pink-300 rounded-full w-48 h-48 mx-auto flex flex-wrap items-center justify-center gap-2 p-6 mb-6 shadow-xl overflow-hidden relative">
-                    <div class="absolute top-2 w-16 h-2 bg-pink-800 rounded-full opacity-20"></div>
+                <div class="bg-pink-100 border-4 border-pink-300 rounded-full w-64 h-64 mx-auto flex flex-wrap items-center justify-center gap-1 p-8 mb-6 shadow-xl overflow-hidden relative">
+                    <div class="absolute top-4 w-24 h-3 bg-pink-800 rounded-full opacity-20"></div>
                     ${tabungMoney.map(m => `
-                         <div class="${m.type === 'coin' ? 'coin w-10 h-10' : 'note w-14 h-8 text-[0.6rem]'} text-xs shadow-sm bg-white animate-popIn" style="background:${m.color}">
-                             ${m.val}
-                         </div>
+                         <img src="${m.img}" class="${m.type === 'coin' ? 'w-10 h-10' : 'w-16 h-8'} object-contain drop-shadow-sm animate-popIn hover:scale-110 transition-transform cursor-pointer" title="${m.val}">
                     `).join('')}
                 </div>
                 
